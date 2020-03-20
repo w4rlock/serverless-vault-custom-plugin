@@ -3,24 +3,34 @@
 const _ = require('lodash');
 const https = require('https');
 
+const LOG_PREFFIX = '[ServerlessVaultPlugin] - ';
+
 
 class ServerlessVaultPlugin {
   constructor(serverless, options) {
-    this.logPreffix = '[ServerlessVaultPlugin] - ';
     this.serverless = serverless;
     this.options = options;
+
+    let disabled = this.getConfValue('disabled', false);
+    if (disabled == 'true') {
+      this.log('plugin disabled');
+      return;
+    }
 
     this.hooks = {
       'before:aws:common:validate:validate': this.setEnvironmentCredentials.bind(this)
     }
   }
 
+
   /**
    * Log to console
    * @param msg:string message to log
    */
-  log(msg) {
-    this.serverless.cli.log(this.logPreffix + msg);
+  log(entity) {
+    this.serverless.cli.log(
+      LOG_PREFFIX + (_.isObject(entity) ? JSON.stringify(entity) : entity)
+    );
   }
 
 
