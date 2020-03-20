@@ -104,10 +104,14 @@ class ServerlessVaultPlugin {
     this.initialize();
 
     return this.vaultRequest().then(res => {
-      process.env.AWS_ACCESS_KEY_ID = _.get(res, this.cfg.jsonAccessPath);
-      process.env.AWS_SECRET_ACCESS_KEY = _.get(res, this.cfg.jsonSecretPath);
+      const key = _.get(res, this.cfg.jsonAccessPath);
+      const secret = _.get(res, this.cfg.jsonSecretPath);
 
-      this.log('Environment vault credentials setted');
+      process.env.AWS_ACCESS_KEY_ID = key;
+      process.env.AWS_SECRET_ACCESS_KEY = secret;
+
+      const protectkey = key.substr(0,3) + '*'.repeat(9) + key.substr(-2);
+      this.log(`Environment vault credentials setted for ${protectkey} aws access key`);
     });
   }
 }
