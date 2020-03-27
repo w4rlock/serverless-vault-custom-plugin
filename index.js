@@ -1,27 +1,25 @@
-'use strict';
-
 const _ = require('lodash');
 const https = require('https');
 
 const LOG_PREFFIX = '[ServerlessVaultPlugin] - ';
-
 
 class ServerlessVaultPlugin {
   constructor(serverless, options) {
     this.serverless = serverless;
     this.options = options;
 
-    let disabled = this.getConfValue('disabled', false);
-    if (disabled == 'true') {
+    const disabled = this.getConfValue('disabled', false);
+    if (disabled) {
       this.log('plugin disabled');
       return;
     }
 
     this.hooks = {
-      'before:aws:common:validate:validate': this.setEnvironmentCredentials.bind(this)
-    }
+      'before:aws:common:validate:validate': this.setEnvironmentCredentials.bind(
+        this
+      ),
+    };
   }
-
 
   /**
    * Log to console
@@ -32,7 +30,6 @@ class ServerlessVaultPlugin {
       LOG_PREFFIX + (_.isObject(entity) ? JSON.stringify(entity) : entity)
     );
   }
-
 
   /*
    * get flexible configuration value
@@ -47,10 +44,10 @@ class ServerlessVaultPlugin {
    * 3- from environment variable
    *   export VAULT_SOMEPROP=some_value
    */
-  getConfValue(key, required = true, default_value = undefined) {
-    const fromEnv = k => process.env[k];
-    const fromCmdArg = k => this.options[k];
-    const fromYaml = k => _.get(this.serverless, `service.custom.${k}`);
+  getConfValue(key, required = true, defaultValue = undefined) {
+    const fromEnv = (k) => process.env[k];
+    const fromCmdArg = (k) => this.options[k];
+    const fromYaml = (k) => _.get(this.serverless, `service.custom.${k}`);
 
     let val = fromCmdArg(`vault-${key}`);
     if (val) return val;
@@ -61,29 +58,33 @@ class ServerlessVaultPlugin {
     val = fromYaml(`vault.${key}`);
     if (val) return val;
 
-    if (required && !default_value) {
-      throw new Error(`property value for ${key} is missing.`)
+    if (required && !defaultValue) {
+      throw new Error(`property value for ${key} is missing.`);
     }
 
-    return default_value;
+    return defaultValue;
   }
 
-
-
   initialize() {
-    this.cfg = {}
+    this.cfg = {};
     this.cfg.host = this.getConfValue('host');
     this.cfg.path = this.getConfValue('path');
-    this.cfg.token = this.getConfValue('token', false,  process.env.TOKEN)
+    this.cfg.token = this.getConfValue('token', false, process.env.TOKEN);
 
-    //vault json responses key path configurables
-    this.cfg.jsonAccessPath = this.getConfValue('jsonaccesspath', false, 'data.aws_access_key_id')
-    this.cfg.jsonSecretPath = this.getConfValue('jsonsecretpath', false, 'data.aws_secret_access_key')
+    // vault json responses key path configurables
+    this.cfg.jsonAccessPath = this.getConfValue(
+      'jsonaccesspath',
+      false,
+      'data.aws_access_key_id'
+    );
+    this.cfg.jsonSecretPath = this.getConfValue(
+      'jsonsecretpath',
+      false,
+      'data.aws_secret_access_key'
+    );
 
     if (!this.cfg.token) throw new Error('vault token is missing');
   }
-
-
 
   vaultRequest() {
     return new Promise((resolve, reject) => {
@@ -99,32 +100,31 @@ class ServerlessVaultPlugin {
         },
       };
 
-      const req = https.request(opts, res => {
-        res.on('data', d => resolve(JSON.parse(d)));
+      const req = https.request(opts, (res) => {
+        res.on('data', (d) => resolve(JSON.parse(d)));
       });
 
-      req.on('error', error => reject(error));
+      req.on('error', (error) => reject(error));
       req.end();
     });
   }
 
-
-
   setEnvironmentCredentials() {
     this.initialize();
 
-    return this.vaultRequest().then(res => {
+    return this.vaultRequest().then((res) => {
       const key = _.get(res, this.cfg.jsonAccessPath);
       const secret = _.get(res, this.cfg.jsonSecretPath);
 
       process.env.AWS_ACCESS_KEY_ID = key;
       process.env.AWS_SECRET_ACCESS_KEY = secret;
 
-      const protectkey = key.substr(0,3) + '*'.repeat(9) + key.substr(-2);
-      this.log(`Environment vault credentials setted for ${protectkey} aws access key`);
+      const protectkey = key.substr(0, 3) + '*'.repeat(9) + key.substr(-2);
+      this.log(
+        `Environment vault credentials setted for ${protectkey} aws access key`
+      );
     });
   }
 }
-
 
 module.exports = ServerlessVaultPlugin;
