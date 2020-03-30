@@ -2,6 +2,7 @@
 .eslintignore
 .prettierrc
 commitlint.config.js
+.env.example.sh
 .env
 
 .lintstagedrc.json

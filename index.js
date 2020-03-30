@@ -101,7 +101,17 @@ class ServerlessVaultPlugin {
       };
 
       const req = https.request(opts, (res) => {
-        res.on('data', (d) => resolve(JSON.parse(d)));
+        res.on('data', (d) => {
+          const resp = JSON.parse(d);
+          const key = _.get(resp, this.cfg.jsonAccessPath);
+          const secret = _.get(resp, this.cfg.jsonSecretPath);
+
+          if (_.isEmpty(key) || _.isEmpty(secret)) {
+            reject(new Error('vault response is empty'));
+          } else {
+            resolve(resp);
+          }
+        });
       });
 
       req.on('error', (error) => reject(error));
@@ -121,7 +131,7 @@ class ServerlessVaultPlugin {
 
       const protectkey = key.substr(0, 3) + '*'.repeat(9) + key.substr(-2);
       this.log(
-        `Environment vault credentials setted for ${protectkey} aws access key`
+        `Vault credentials setted for ${protectkey} aws access key`
       );
     });
   }
