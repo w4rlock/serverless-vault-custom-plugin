@@ -1,0 +1,25 @@
+service:
+  name: serverless-vault-plugin
+
+provider:
+  name: aws
+  stage: "develop"
+  region: "us-east-1"
+
+
+
+plugins:
+  modules:
+    - ./index.js
+
+
+custom:
+  vault:
+    host: ${env:VAULT_HOST}
+    debugQuery: true
+    auth:
+      roleId: ${env:VAULT_ROLEID}
+      secretId: ${env:VAULT_SECRETID}
+    aws:
+      setEnvVars: true
+      secretPath: ${env:VAULT_AWS_SECRETPATH}

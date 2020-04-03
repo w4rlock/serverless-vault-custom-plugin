@@ -1,139 +1,238 @@
 const _ = require('lodash');
-const https = require('https');
+const VaultService = require('vault-es6-cli');
+const BaseServerlessPlugin = require('base-serverless-plugin');
 
 const LOG_PREFFIX = '[ServerlessVaultPlugin] - ';
 
-class ServerlessVaultPlugin {
+class ServerlessVaultPlugin extends BaseServerlessPlugin {
   constructor(serverless, options) {
-    this.serverless = serverless;
-    this.options = options;
-
-    const disabled = this.getConfValue('disabled', false, false);
-    if ((_.isBoolean(disabled) && disabled) || disabled === 'true') {
-      this.log('plugin disabled');
-      return;
-    }
+    super(serverless, options, LOG_PREFFIX, 'vault');
 
     this.hooks = {
-      'before:aws:common:validate:validate': this.setEnvironmentCredentials.bind(
-        this
+      'vault:auth:auth': this.actionDispatcher.bind(
+        this,
+        this.setupAwsCredentials
       ),
+      'vault:set:set': this.actionDispatcher.bind(this, this.createSecret),
+      'vault:get:get': this.actionDispatcher.bind(this, this.fetchSecret),
+      'vault:del:del': this.actionDispatcher.bind(this, this.deleteSecret),
+      'after:package:cleanup': this.actionDispatcher.bind(
+        this,
+        this.setupAwsCredentials
+      ),
+    };
+
+    this.commands = {
+      vault: {
+        usage: 'Vault client',
+        commands: {
+          auth: { usage: 'sls vault auth', lifecycleEvents: ['auth'] },
+          set: {
+            usage: 'sls set secret',
+            lifecycleEvents: ['set'],
+            options: {
+              secret: { usage: 'path to secret', required: true },
+              jsondata: { usage: 'secret data', required: true },
+            },
+          },
+          get: {
+            usage: 'sls get secret',
+            lifecycleEvents: ['get'],
+            options: {
+              secret: { usage: 'Get secret value', required: true },
+            },
+          },
+          del: {
+            usage: 'sls del secret',
+            lifecycleEvents: ['del'],
+            options: {
+              secret: { usage: 'Delete secret', required: true },
+              jsondata: { usage: 'Secret json string data', required: true },
+            },
+          },
+        },
+      },
+    };
+
+    this.variableResolvers = {
+      vault: {
+        resolver: this.actionDispatcher.bind(this, this.resolveSecret),
+        serviceName: 'vault',
+        isDisabledAtPrepopulation: true,
+      },
     };
   }
 
   /**
-   * Log to console
-   * @param msg:string message to log
-   */
-  log(entity) {
-    this.serverless.cli.log(
-      LOG_PREFFIX + (_.isObject(entity) ? JSON.stringify(entity) : entity)
-    );
-  }
-
-  /*
-   * get flexible configuration value
+   * Action Wrapper check plugin condition before perform action
    *
-   * Order priority
-   * 1- sls --vault-someprop=some_value
-   * 2- in serverless.yaml
-   *   custom
-   *     vault:
-   *       someprop: some_value
-   *
-   * 3- from environment variable
-   *   export VAULT_SOMEPROP=some_value
+   * @param {function} funAction serverless plugin action
    */
-  getConfValue(key, required = true, defaultValue = undefined) {
-    const fromEnv = (k) => process.env[k];
-    const fromCmdArg = (k) => this.options[k];
-    const fromYaml = (k) => _.get(this.serverless, `service.custom.${k}`);
-
-    let val = fromCmdArg(`vault-${key}`);
-    if (val) return val;
-
-    val = fromEnv(`VAULT_${key}`.toUpperCase());
-    if (val) return val;
-
-    val = fromYaml(`vault.${key}`);
-    if (val) return val;
-
-    if (required && !defaultValue) {
-      throw new Error(`property value for ${key} is missing.`);
+  async actionDispatcher(funAction) {
+    if (this.isPluginDisabled()) {
+      this.log('plugin is disabled');
+      return;
     }
 
-    return defaultValue;
+    this.initialize();
+
+    this.log('Vault athenticating...');
+    await this.vault.authenticate();
+    await funAction.call(this);
   }
 
-  initialize() {
+  /**
+   * Initialize user config variables
+   *
+   */
+  async initialize() {
     this.cfg = {};
-    this.cfg.host = this.getConfValue('host');
-    this.cfg.path = this.getConfValue('path');
-    this.cfg.token = this.getConfValue('token', false, process.env.TOKEN);
-
-    // vault json responses key path configurables
-    this.cfg.jsonAccessPath = this.getConfValue(
-      'jsonaccesspath',
+    this.cfg.aws = {};
+    this.cfg.aws.setEnvVars = this.getConf('aws.setEnvVars', false, false);
+    this.cfg.debugQuery = this.getConf('debugQuery', false, false);
+    this.cfg.aws.secretPath = this.getConf('aws.secretPath');
+    this.cfg.aws.respJsonKeyPath = this.getConf(
+      'aws.respJsonKeyPath',
       false,
       'data.aws_access_key_id'
     );
-    this.cfg.jsonSecretPath = this.getConfValue(
-      'jsonsecretpath',
+
+    this.cfg.aws.respJsonSecretPath = this.getConf(
+      'aws.respJsonSecretPath',
       false,
       'data.aws_secret_access_key'
     );
 
-    if (!this.cfg.token) throw new Error('vault token is missing');
-  }
+    this.vault = new VaultService(
+      this.getConf('host'),
+      this.getConf('auth.roleId'),
+      this.getConf('auth.secretId')
+    );
 
-  vaultRequest() {
-    return new Promise((resolve, reject) => {
-      const { host, path, token } = this.cfg;
-
-      const opts = {
-        path,
-        hostname: host,
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Vault-Token': token,
-        },
-      };
-
-      const req = https.request(opts, (res) => {
-        res.on('data', (d) => {
-          const resp = JSON.parse(d);
-          const key = _.get(resp, this.cfg.jsonAccessPath);
-          const secret = _.get(resp, this.cfg.jsonSecretPath);
-
-          if (_.isEmpty(key) || _.isEmpty(secret)) {
-            reject(new Error('wrong credentials or vault response is empty'));
-          } else {
-            resolve(resp);
-          }
-        });
+    if (this.cfg.debugQuery) {
+      this.vault.useRequestInterceptor((req) => {
+        this.log(req);
+        return req;
       });
-
-      req.on('error', (error) => reject(error));
-      req.end();
-    });
+    }
   }
 
-  setEnvironmentCredentials() {
-    this.initialize();
+  /**
+   * Set up aws credentials environment
+   *
+   */
+  async setupAwsCredentials() {
+    this.log('Fetching aws vault credentials...');
+    const resp = await this.vault.fetchSecret(this.cfg.aws.secretPath);
 
-    return this.vaultRequest().then((res) => {
-      const key = _.get(res, this.cfg.jsonAccessPath);
-      const secret = _.get(res, this.cfg.jsonSecretPath);
+    if (_.isEmpty(resp)) return;
+
+    if (this.cfg.aws.setEnvVars) {
+      const { respJsonSecretPath, respJsonKeyPath } = this.cfg.aws;
+      const key = _.get(resp, respJsonKeyPath);
+      const secret = _.get(resp, respJsonSecretPath);
+
+      if (!key || !secret) {
+        throw new Error(
+          `Parsing response - invalid json path,
+          please check the response and update your serverless.yml:
+            vault.aws.respJsonSecretPath: "${respJsonSecretPath}"
+            vault.aws.respJsonKeyPath: "${respJsonKeyPath}"`
+        );
+      }
 
       process.env.AWS_ACCESS_KEY_ID = key;
       process.env.AWS_SECRET_ACCESS_KEY = secret;
 
-      const protectkey = key.substr(0, 3) + '*'.repeat(9) + key.substr(-2);
-      this.log(
-        `Vault credentials setted for ${protectkey} aws access key`
-      );
-    });
+      const sensibleKey = key.substr(0, 3) + '*'.repeat(9) + key.substr(-2);
+      this.log(`Vault credentials setted for "${sensibleKey}" aws access key`);
+    }
+  }
+
+  /**
+   * Resolve serverless.yml variable
+   *
+   * @param {string} rawSecret
+   * @return {string} secret value
+   */
+  async resolveSecret(rawSecret) {
+    let val = '';
+    if (!_.isEmpty(rawSecret) && rawSecret.includes(':')) {
+      const [, secretPath] = rawSecret.split(':');
+      val = await this.vault.fetchSecret(secretPath);
+    }
+
+    return val;
+  }
+
+  /**
+   * Fetch Secret for command line and print info in stdout
+   *
+   */
+  async fetchSecret() {
+    const { secret } = this.options;
+
+    this.log(`Fetching secret "${secret}"...`);
+
+    if (secret) {
+      const resp = await this.vault.fetchSecret(secret);
+      this.log(resp);
+    }
+  }
+
+  /**
+   * Create Secret and print info in stdout
+   *
+   */
+  async createSecret() {
+    const { secret, jsondata } = this.options;
+    let data;
+
+    try {
+      data = JSON.parse(jsondata);
+    } catch (e) {
+      throw new Error('Invalid json to data command argument');
+    }
+
+    this.log(`Creating secret "${secret}"...`);
+
+    this.vault
+      .createSecret(secret, data)
+      .then((resp) => this.log(resp))
+      .catch((err) => {
+        const { message } = err;
+        if (message && message.includes('403')) {
+          throw new Error('permission error 403');
+        }
+        throw new Error(err);
+      });
+  }
+
+  /**
+   * Remove Secret and print info in stdout
+   *
+   */
+  async deleteSecret() {
+    const { secret, jsondata } = this.options;
+    let data;
+
+    try {
+      data = JSON.parse(jsondata);
+    } catch (e) {
+      throw new Error('Invalid json to data command argument');
+    }
+
+    this.log(`Removing secret "${secret}"...`);
+    this.vault
+      .deleteSecret(secret, data)
+      .then((resp) => this.log(resp))
+      .catch((err) => {
+        const { message } = err;
+        if (message && message.includes('403')) {
+          throw new Error('permission error 403');
+        }
+        throw new Error(err);
+      });
   }
 }
 
