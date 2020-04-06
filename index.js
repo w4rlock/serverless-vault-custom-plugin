@@ -231,6 +231,13 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
     return res;
   }
 
+  /**
+   * Throws Errors Handlers for friendly messages.
+   *
+   * @static
+   * @param {object} err the catch error variable
+   * @returns {exception} the throw error
+   */
   static errorHandler(err) {
     if (err && !_.isEmpty(err.message)) {
       const { message } = err;
