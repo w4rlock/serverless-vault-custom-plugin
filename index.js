@@ -15,7 +15,7 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
       'vault:set:set': this.dispatchAction.bind(this, this.createSecret),
       'vault:get:get': this.dispatchAction.bind(this, this.fetchSecret),
       'vault:del:del': this.dispatchAction.bind(this, this.deleteSecret),
-      'vault:auth:aws': this.dispatchAction.bind(this, this.setupAwsEnv),
+      'vault:auth:aws:env': this.dispatchAction.bind(this, this.setupAwsEnv),
       'after:package:cleanup': this.dispatchAction.bind(this, this.setupAwsEnv),
     };
 
