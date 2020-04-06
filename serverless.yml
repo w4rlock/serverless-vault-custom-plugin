@@ -14,12 +14,21 @@ plugins:
 
 
 custom:
+  secrets:
+    aws: 'path/to/secret'
+    dd: 'path/to/secret:response.path.to.object.property'
+
+  test:
+    ssecret: ${vault:${self:custom.secrets.aws}}
   vault:
     host: ${env:VAULT_HOST}
-    debugQuery: true
+    #debugQuery: true
     auth:
       roleId: ${env:VAULT_ROLEID}
       secretId: ${env:VAULT_SECRETID}
+      useToken: ""
     aws:
       setEnvVars: true
       secretPath: ${env:VAULT_AWS_SECRETPATH}
+  aaa:
+    aas: ${vault:${self:custom.secrets.dd}}

@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const VaultService = require('vault-es6-cli');
 const BaseServerlessPlugin = require('base-serverless-plugin');
+const Commands = require('./lib/Commands');
 
 const LOG_PREFFIX = '[ServerlessVaultPlugin] - ';
 
@@ -8,59 +9,37 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
   constructor(serverless, options) {
     super(serverless, options, LOG_PREFFIX, 'vault');
 
-    this.hooks = {
-      'vault:auth:auth': this.actionDispatcher.bind(
-        this,
-        this.setupAwsCredentials
-      ),
-      'vault:set:set': this.actionDispatcher.bind(this, this.createSecret),
-      'vault:get:get': this.actionDispatcher.bind(this, this.fetchSecret),
-      'vault:del:del': this.actionDispatcher.bind(this, this.deleteSecret),
-      'after:package:cleanup': this.actionDispatcher.bind(
-        this,
-        this.setupAwsCredentials
-      ),
-    };
+    this.commands = Commands;
 
-    this.commands = {
-      vault: {
-        usage: 'Vault client',
-        commands: {
-          auth: { usage: 'sls vault auth', lifecycleEvents: ['auth'] },
-          set: {
-            usage: 'sls set secret',
-            lifecycleEvents: ['set'],
-            options: {
-              secret: { usage: 'path to secret', required: true },
-              jsondata: { usage: 'secret data', required: true },
-            },
-          },
-          get: {
-            usage: 'sls get secret',
-            lifecycleEvents: ['get'],
-            options: {
-              secret: { usage: 'Get secret value', required: true },
-            },
-          },
-          del: {
-            usage: 'sls del secret',
-            lifecycleEvents: ['del'],
-            options: {
-              secret: { usage: 'Delete secret', required: true },
-              jsondata: { usage: 'Secret json string data', required: true },
-            },
-          },
-        },
-      },
+    this.hooks = {
+      'vault:set:set': this.dispatchAction.bind(this, this.createSecret),
+      'vault:get:get': this.dispatchAction.bind(this, this.fetchSecret),
+      'vault:del:del': this.dispatchAction.bind(this, this.deleteSecret),
+      'vault:auth:auth': this.dispatchAction.bind(this, this.setupAwsEnv),
+      'after:package:cleanup': this.dispatchAction.bind(this, this.setupAwsEnv),
     };
 
     this.variableResolvers = {
       vault: {
-        resolver: this.actionDispatcher.bind(this, this.resolveSecret),
+        resolver: this.dispatchAction.bind(this, this.resolveSecret),
         serviceName: 'vault',
         isDisabledAtPrepopulation: true,
       },
     };
+
+    // when you need to resolve many vars into serverless.yml
+    // this should run once
+    this.initialize = _.once(() => {
+      this.loadConfig();
+
+      if (!_.isEmpty(this.cfg.useToken)) {
+        this.vault.useToken(this.cfg.useToken);
+        return Promise.resolve();
+      }
+
+      this.log('Vault athenticating - getting token...');
+      return this.vault.authenticate();
+    });
   }
 
   /**
@@ -68,24 +47,22 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    *
    * @param {function} funAction serverless plugin action
    */
-  async actionDispatcher(funAction) {
+  async dispatchAction(funAction, varResolver) {
     if (this.isPluginDisabled()) {
-      this.log('plugin is disabled');
-      return;
+      this.log('warning: plugin is disabled');
+      return '';
     }
 
-    this.initialize();
-
-    this.log('Vault athenticating...');
-    await this.vault.authenticate();
-    await funAction.call(this);
+    await this.initialize();
+    const res = await funAction.call(this, varResolver);
+    return res;
   }
 
   /**
-   * Initialize user config variables
+   * Load user config
    *
    */
-  async initialize() {
+  loadConfig() {
     this.cfg = {};
     this.cfg.aws = {};
     this.cfg.aws.setEnvVars = this.getConf('aws.setEnvVars', false, false);
@@ -103,6 +80,7 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
       'data.aws_secret_access_key'
     );
 
+    this.cfg.useToken = this.getConf('auth.useToken', false);
     this.vault = new VaultService(
       this.getConf('host'),
       this.getConf('auth.roleId'),
@@ -121,7 +99,7 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    * Set up aws credentials environment
    *
    */
-  async setupAwsCredentials() {
+  async setupAwsEnv() {
     this.log('Fetching aws vault credentials...');
     const resp = await this.vault.fetchSecret(this.cfg.aws.secretPath);
 
@@ -158,8 +136,19 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
   async resolveSecret(rawSecret) {
     let val = '';
     if (!_.isEmpty(rawSecret) && rawSecret.includes(':')) {
-      const [, secretPath] = rawSecret.split(':');
-      val = await this.vault.fetchSecret(secretPath);
+      const [, secretPath, valuePath] = rawSecret.split(':');
+
+      try {
+        // default response is a json object
+        val = await this.vault.fetchSecret(secretPath);
+      } catch (e) {
+        ServerlessVaultPlugin.errorHandler(e);
+      }
+
+      // extract value from json object
+      if (!_.isEmpty(valuePath)) {
+        val = _.get(val, valuePath);
+      }
     }
 
     return val;
@@ -168,71 +157,89 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
   /**
    * Fetch Secret for command line and print info in stdout
    *
+   * @returns {promise}
    */
   async fetchSecret() {
+    let res;
     const { secret } = this.options;
 
     this.log(`Fetching secret "${secret}"...`);
 
     if (secret) {
-      const resp = await this.vault.fetchSecret(secret);
-      this.log(resp);
+      try {
+        res = await this.vault.fetchSecret(secret);
+        this.log(res);
+      } catch (e) {
+        ServerlessVaultPlugin.errorHandler(e);
+      }
     }
+
+    return res;
   }
 
   /**
    * Create Secret and print info in stdout
    *
+   * @returns {promise}
    */
   async createSecret() {
+    let res;
     const { secret, jsondata } = this.options;
     let data;
 
     try {
       data = JSON.parse(jsondata);
     } catch (e) {
-      throw new Error('Invalid json to data command argument');
+      throw new Error('Invalid "jsondata" command argument');
     }
 
     this.log(`Creating secret "${secret}"...`);
 
-    this.vault
-      .createSecret(secret, data)
-      .then((resp) => this.log(resp))
-      .catch((err) => {
-        const { message } = err;
-        if (message && message.includes('403')) {
-          throw new Error('permission error 403');
-        }
-        throw new Error(err);
-      });
+    try {
+      res = await this.vault.createSecret(secret, data);
+      this.log(res);
+    } catch (err) {
+      ServerlessVaultPlugin.errorHandler(err);
+    }
+
+    return res;
   }
 
   /**
    * Remove Secret and print info in stdout
    *
+   * @returns {promise}
    */
   async deleteSecret() {
-    const { secret, jsondata } = this.options;
+    let res;
     let data;
+    const { secret, jsondata } = this.options;
 
     try {
       data = JSON.parse(jsondata);
     } catch (e) {
-      throw new Error('Invalid json to data command argument');
+      throw new Error('Invalid "jsondata" command argument');
     }
 
     this.log(`Removing secret "${secret}"...`);
-    this.vault
-      .deleteSecret(secret, data)
-      .then((resp) => this.log(resp))
-      .catch((err) => {
-        const { message } = err;
-        if (message && message.includes('403')) {
-          throw new Error('permission error 403');
-        }
-        throw new Error(err);
-      });
+    try {
+      res = await this.vault.deleteSecret(secret, data);
+      this.log(res);
+    } catch (err) {
+      ServerlessVaultPlugin.errorHandler(err);
+    }
+    return res;
+  }
+
+  static errorHandler(err) {
+    if (err && !_.isEmpty(err.message)) {
+      const { message } = err;
+      if (message && message.includes('403')) {
+        throw new Error('403 - Permission error.. check your token scope');
+      }
+    }
+
+    throw new Error(err);
   }
 }
 

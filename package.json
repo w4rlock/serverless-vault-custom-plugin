@@ -38,7 +38,7 @@
     "base-serverless-plugin": "0.1.1",
     "lodash": "^4.17.15",
     "ramda": "^0.27.0",
-    "vault-es6-cli": "0.1.0"
+    "vault-es6-cli": "0.2.0"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^8.3.4",
