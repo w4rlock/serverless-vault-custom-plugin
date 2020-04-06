@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.2](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.1.1...1.1.2) (2020-04-06)
+
+
+### Bug Fixes
+
+* rename hook ([4458472](https://github.com/w4rlock/serverless-vault-custom-plugin/commit/4458472273ef338b11e7b7b53d648e3291df9684))
+
 ### [1.1.1](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.1.0...1.1.1) (2020-04-06)
 
 
