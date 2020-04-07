@@ -3,7 +3,7 @@ const VaultService = require('vault-es6-cli');
 const BaseServerlessPlugin = require('base-serverless-plugin');
 const Commands = require('./lib/Commands');
 
-const LOG_PREFFIX = '[ServerlessVaultPlugin] - ';
+const LOG_PREFFIX = '[ServerlessVaultPlugin] -';
 
 class ServerlessVaultPlugin extends BaseServerlessPlugin {
   constructor(serverless, options) {
