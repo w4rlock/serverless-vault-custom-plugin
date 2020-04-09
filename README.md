@@ -15,20 +15,24 @@ plugins:
 custom:
   secrets:
     aws: 'path/to/secret:data.value'
-    dd: 'path/to/secret:data.manysecrets.secret.value'
+    otherPluginSecret: 'path/to/secret:response.path.to.object.property'
 
   vault:
-    host: vault.corp.com
+    host: vault.your.corp.com
     debugQuery: false                 # optional, log axios http request
     auth:
-      roleId: 'xxx-xxxx-xxxxx-xx'     # recomment use ssm or something like that
-      secretId: 'xx-xxx-xx-x-xxx'     # recommend use ssm or something like that
-      # Or
+      # option 1
+      roleId: 'xxx-xxxx-xxxxx-xx'     # optional, recommend use ssm or something like that
+      secretId: 'xx-xxx-xx-x-xxx'     # optional, recommend use ssm or something like that
+
+      # option 2
       useToken: ""                    # optional, force request to use this token
+
     aws:
       setEnvVars: true
       secretPath: '/mi/project/dev/aws/creds'
 
-  otherPluginConf:
-    miOtherSecret: ${vault:${self:custom.secrets.dd}}
+  # HOW TO RESOLVE ANOTHER SECRET
+  #otherPluginConf:
+    #secret: ${vault:${self:custom.secrets.otherPluginSecret}}
 ```

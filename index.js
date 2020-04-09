@@ -65,9 +65,13 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
   loadConfig() {
     this.cfg = {};
     this.cfg.aws = {};
-    this.cfg.aws.setEnvVars = this.getConf('aws.setEnvVars', false, false);
+
+    // optional config
     this.cfg.debugQuery = this.getConf('debugQuery', false, false);
-    this.cfg.aws.secretPath = this.getConf('aws.secretPath');
+    this.cfg.aws.secretPath = this.getConf('aws.secretPath', false);
+    this.cfg.aws.setEnvVars = this.getConf('aws.setEnvVars', false, false);
+
+    // extract aws secrets from vault response
     this.cfg.aws.respJsonKeyPath = this.getConf(
       'aws.respJsonKeyPath',
       false,
@@ -80,11 +84,12 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
       'data.aws_secret_access_key'
     );
 
-    this.cfg.useToken = this.getConf('auth.useToken', false);
+    // vault authentication
+    this.cfg.useToken = this.getConf('auth.useToken', false, false);
     this.vault = new VaultService(
       this.getConf('host'),
-      this.getConf('auth.roleId'),
-      this.getConf('auth.secretId')
+      this.getConf('auth.roleId', false),
+      this.getConf('auth.secretId', false)
     );
 
     if (this.cfg.debugQuery) {
@@ -142,7 +147,7 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
         // default response is a json object
         val = await this.vault.fetchSecret(secretPath);
       } catch (e) {
-        ServerlessVaultPlugin.errorHandler(e);
+        this.errorHandler(e);
       }
 
       // extract value from json object
@@ -170,7 +175,7 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
         res = await this.vault.fetchSecret(secret);
         this.log(res);
       } catch (e) {
-        ServerlessVaultPlugin.errorHandler(e);
+        this.errorHandler(e);
       }
     }
 
@@ -197,9 +202,9 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
 
     try {
       res = await this.vault.createSecret(secret, data);
-      this.log(res);
+      this.log(res.status);
     } catch (err) {
-      ServerlessVaultPlugin.errorHandler(err);
+      this.errorHandler(err);
     }
 
     return res;
@@ -212,21 +217,14 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    */
   async deleteSecret() {
     let res;
-    let data;
-    const { secret, jsondata } = this.options;
-
-    try {
-      data = JSON.parse(jsondata);
-    } catch (e) {
-      throw new Error('Invalid "jsondata" command argument');
-    }
+    const { secret } = this.options;
 
     this.log(`Removing secret "${secret}"...`);
     try {
-      res = await this.vault.deleteSecret(secret, data);
-      this.log(res);
+      res = await this.vault.deleteSecret(secret);
+      this.log(res.status);
     } catch (err) {
-      ServerlessVaultPlugin.errorHandler(err);
+      this.errorHandler(err);
     }
     return res;
   }
@@ -234,19 +232,24 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
   /**
    * Throws Errors Handlers for friendly messages.
    *
-   * @static
    * @param {object} err the catch error variable
    * @returns {exception} the throw error
    */
-  static errorHandler(err) {
-    if (err && !_.isEmpty(err.message)) {
-      const { message } = err;
-      if (message && message.includes('403')) {
-        throw new Error('403 - Permission error.. check your token scope');
+  errorHandler(err) {
+    if (!err) return;
+
+    if (!_.isEmpty(err.message)) {
+      if (err.message.includes('403')) {
+        throw new Error('403 - Permission error.. check your token scope.');
+      }
+
+      if (err.message.includes('404') && !_.isEmpty(err.config)) {
+        this.log('ERROR: 404 - SECRET NOT FOUND:');
+        this.log(err.config);
       }
     }
 
-    throw new Error(err);
+    throw err;
   }
 }
 

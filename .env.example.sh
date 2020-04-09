@@ -4,8 +4,8 @@ export VAULT_HOST='vault.corp.cloud';
 export VAULT_DEBUG_QUERY=true
 
 # ---------
-export VAULT_ROLEID='xxx-xxxxxxxxxx-xxxxxxx'
-export VAULT_SECRETID='xxxxxxxxxx'
+export VAULT_AUTH_ROLEID='xxx-xxxxxxxxxx-xxxxxxx'
+export VAULT_AUTH_SECRETID='xxxxxxxxxx'
 #OR
 export VAULT_AUTH_USETOKEN = 'xxxx'
 # ---------
