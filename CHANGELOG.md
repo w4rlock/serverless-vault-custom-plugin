@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.2.0...1.3.0) (2020-04-09)
+
+
+### Bug Fixes
+
+* delete method ([4d10dcd](https://github.com/w4rlock/serverless-vault-custom-plugin/commit/4d10dcd9b0a4b483e9dbac8c6646d247c5b867f2))
+
 ## [1.2.0](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.1.2...1.2.0) (2020-04-07)
 
 
