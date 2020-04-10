@@ -1,3 +1,7 @@
+<p align="center">
+  <img alt="Vault" src="https://user-images.githubusercontent.com/621906/78959793-6978f400-7ac2-11ea-98d4-e240012058a6.png">
+</p>
+
 ![serverless](http://public.serverless.com/badges/v3.svg)
 [![npm version](https://badge.fury.io/js/serverless-vault-custom-plugin.svg)](https://badge.fury.io/js/serverless-vault-custom-plugin)
 
