@@ -10,6 +10,14 @@
 npm i -E serverless-vault-custom-plugin
 ```
 
+### Features
+```yaml
+- Auth with roleId or use token 
+- Variable Resolver
+- Fetch and set aws credentials
+- Command Line Support
+```
+
 ### Usage
 
 ```yaml
@@ -39,4 +47,12 @@ custom:
   # HOW TO RESOLVE ANOTHER SECRET
   #otherPluginConf:
     #secret: ${vault:${self:custom.secrets.otherPluginSecret}}
+```
+
+### Command Line Support
+```bash
+$ sls vault --help
+$ sls vault get --secret /relative/path/to/secret
+$ sls vault del --secret /relative/path/to/secret
+$ sls vault set --secret /relative/path/to/secret --jsondata '{"value":"some_token_or_cred"}'
 ```
