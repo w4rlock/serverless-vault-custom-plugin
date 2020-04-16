@@ -10,13 +10,14 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
     super(serverless, options, LOG_PREFFIX, 'vault');
 
     this.commands = Commands;
+    this.checkCreds = _.once(() => this.setupAwsEnv());
 
     this.hooks = {
       'vault:set:set': this.dispatchAction.bind(this, this.createSecret),
       'vault:get:get': this.dispatchAction.bind(this, this.fetchSecret),
       'vault:del:del': this.dispatchAction.bind(this, this.deleteSecret),
-      'vault:auth:aws:env': this.dispatchAction.bind(this, this.setupAwsEnv),
-      'after:package:cleanup': this.dispatchAction.bind(this, this.setupAwsEnv),
+      'vault:auth:aws:env': this.dispatchAction.bind(this, this.checkCreds),
+      'after:package:cleanup': this.dispatchAction.bind(this, this.checkCreds),
     };
 
     this.variableResolvers = {
@@ -140,6 +141,7 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    */
   async resolveSecret(rawSecret) {
     let val = '';
+
     if (!_.isEmpty(rawSecret) && rawSecret.includes(':')) {
       const [, secretPath, valuePath] = rawSecret.split(':');
 
@@ -165,8 +167,8 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    * @returns {promise}
    */
   async fetchSecret() {
-    let res;
     const { secret } = this.options;
+    let res;
 
     this.log(`Fetching secret "${secret}"...`);
 
@@ -188,9 +190,9 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    * @returns {promise}
    */
   async createSecret() {
-    let res;
     const { secret, jsondata } = this.options;
     let data;
+    let res;
 
     try {
       data = JSON.parse(jsondata);
@@ -216,8 +218,8 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    * @returns {promise}
    */
   async deleteSecret() {
-    let res;
     const { secret } = this.options;
+    let res;
 
     this.log(`Removing secret "${secret}"...`);
     try {
