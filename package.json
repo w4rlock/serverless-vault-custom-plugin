@@ -1,6 +1,6 @@
 {
   "name": "serverless-vault-custom-plugin",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "a vault plugin",
   "main": "index.js",
   "scripts": {
