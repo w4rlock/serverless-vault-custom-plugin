@@ -106,6 +106,8 @@ class ServerlessVaultPlugin extends BaseServerlessPlugin {
    *
    */
   async setupAwsEnv() {
+    if (_.isEmpty(this.cfg.aws.secretPath)) return;
+
     this.log('Fetching aws vault credentials...');
     const resp = await this.vault.fetchSecret(this.cfg.aws.secretPath);
 

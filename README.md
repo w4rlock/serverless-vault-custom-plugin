@@ -14,7 +14,7 @@ npm i -E serverless-vault-custom-plugin
 
 ### Features
 ```yaml
-- Auth with roleId or use token 
+- Auth with roleId or use token
 - Variable Resolver
 - Fetch and set aws credentials
 - Command Line Support
@@ -33,18 +33,18 @@ custom:
 
   vault:
     host: vault.your.corp.com
-    debugQuery: false                 # optional, log axios http request
+    debugQuery: false                           # optional, log axios http request
     auth:
       # option 1
-      roleId: 'xxx-xxxx-xxxxx-xx'     # optional, recommend use ssm or something like that
-      secretId: 'xx-xxx-xx-x-xxx'     # optional, recommend use ssm or something like that
+      roleId: 'xxx-xxxx-xxxxx-xx'               # optional
+      secretId: 'xx-xxx-xx-x-xxx'               # optional
 
       # option 2
-      useToken: ""                    # optional, force request to use this token
+      useToken: ""                              # optional, force request to use this token
 
-    aws:
-      setEnvVars: true
-      secretPath: '/mi/project/dev/aws/creds'
+    aws:                                        # optional tag
+      setEnvVars: true                          # set environment aws creds vars
+      secretPath: '/mi/project/dev/aws/creds'   # path to aws secret creds
 
   # HOW TO RESOLVE ANOTHER SECRET
   #otherPluginConf:
