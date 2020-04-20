@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.4](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.3.3...1.3.4) (2020-04-20)
+
+
+### Features
+
+* add optional tag ([33d31cc](https://github.com/w4rlock/serverless-vault-custom-plugin/commit/33d31cca3b75c59c0020f1d5921d19cf3313fe02))
+
 ### [1.3.3](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.3.2...1.3.3) (2020-04-16)
 
 ### [1.3.2](https://github.com/w4rlock/serverless-vault-custom-plugin/compare/1.3.1...1.3.2) (2020-04-16)
