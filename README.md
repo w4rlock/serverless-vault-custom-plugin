@@ -5,6 +5,7 @@
 ![serverless](http://public.serverless.com/badges/v3.svg)
 [![npm version](https://badge.fury.io/js/serverless-vault-custom-plugin.svg)](https://badge.fury.io/js/serverless-vault-custom-plugin)
 [![npm downloads](https://img.shields.io/npm/dt/serverless-vault-custom-plugin.svg?style=flat)](https://www.npmjs.com/package/serverless-vault-custom-plugin)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=278YCRJXTXLXJ)
 
 
 ### Installation
@@ -58,3 +59,9 @@ $ sls vault get --secret /relative/path/to/secret
 $ sls vault del --secret /relative/path/to/secret
 $ sls vault set --secret /relative/path/to/secret --jsondata '{"value":"some_token_or_cred"}'
 ```
+
+## Donation
+Donate helps me to continue adding new features or bugs fix..
+If this project help you reduce time to develop, you can buy me a :beer: IPA... Every tiny cents help me a lot ... Thanks!
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=278YCRJXTXLXJ)
