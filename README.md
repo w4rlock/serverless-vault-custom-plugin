@@ -21,6 +21,7 @@ npm i -E serverless-vault-custom-plugin
 - Command Line Support
 ```
 
+
 ### Plugin Configuration
 ```yaml
 plugins:
@@ -40,6 +41,7 @@ custom:
       useToken: ""                              # optional, force request to use this token
 ```
 
+
 ### Simple Example Usage (key => value)
 ```yaml
 
@@ -50,15 +52,17 @@ custom:
   mysql_pass: ${vault:/develop/mysql_password}
 ```
 
+
 ### Example Handling Object response (key => object)
 ```yaml
 
-# Syntax ${vault:/secret/path:object.path.to.value}
+# Syntax ${vault:/secret/path:response.path.to.value}
 
 custom:  
   mysql_user: ${vault:/develop/mysql_creds:data.mysql.user}
   mysql_pass: ${vault:/develop/mysql_creds:data.mysql.password}
 ```
+
 
 
 ### Command Line CLI Support
