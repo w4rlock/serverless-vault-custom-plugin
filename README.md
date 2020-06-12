@@ -21,20 +21,16 @@ npm i -E serverless-vault-custom-plugin
 - Command Line Support
 ```
 
-### Usage
-
+### Plugin Configuration
 ```yaml
 plugins:
   - serverless-vault-custom-plugin
 
 custom:
-  secrets:
-    aws: 'path/to/secret:data.value'
-    otherPluginSecret: 'path/to/secret:response.path.to.object.property'
-
   vault:
     host: vault.your.corp.com
     debugQuery: false                           # optional, log axios http request
+    
     auth:
       # option 1
       roleId: 'xxx-xxxx-xxxxx-xx'               # optional
@@ -42,17 +38,30 @@ custom:
 
       # option 2
       useToken: ""                              # optional, force request to use this token
-
-    aws:                                        # optional tag
-      setEnvVars: true                          # set environment aws creds vars
-      secretPath: '/mi/project/dev/aws/creds'   # path to aws secret creds
-
-  # HOW TO RESOLVE ANOTHER SECRET
-  #otherPluginConf:
-    #secret: ${vault:${self:custom.secrets.otherPluginSecret}}
 ```
 
-### Command Line Support
+### Simple Example Usage (key => value)
+```yaml
+
+# Syntax ${vault:/secret/path:object.path.to.value}
+
+custom:  
+  mysql_user: ${vault:/develop/mysql_user}
+  mysql_pass: ${vault:/develop/mysql_password}
+```
+
+### Example Handling Object response (key => object)
+```yaml
+
+# Syntax ${vault:/secret/path:object.path.to.value}
+
+custom:  
+  mysql_user: ${vault:/develop/mysql_creds:data.mysql.user}
+  mysql_pass: ${vault:/develop/mysql_creds:data.mysql.password}
+```
+
+
+### Command Line CLI Support
 ```bash
 $ sls vault --help
 $ sls vault get --secret /relative/path/to/secret
